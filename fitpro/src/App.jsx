@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 
@@ -24,6 +23,10 @@ const EXERCISE_LIBRARY = [
 const DAYS_IT = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
 
 const genId = () => Math.random().toString(36).slice(2);
+
+// ── CODICE SEGRETO TRAINER ────────────────────────────────────────────────────
+// Cambia questa stringa con il tuo codice segreto prima del deploy!
+const TRAINER_SECRET_CODE = "FITPRO-COACH-2025";
 
 const INITIAL_WORKOUTS = {
   1: [
@@ -416,7 +419,9 @@ function LoginScreen({ onLogin, users, onRegister }) {
   const [regPass2, setRegPass2] = useState("");
   const [regGoal, setRegGoal] = useState("Ipertrofia");
   const [regLoading, setRegLoading] = useState(false);
-  const [welcomeEmail, setWelcomeEmail] = useState(null); // { to, subject, body }
+  const [welcomeEmail, setWelcomeEmail] = useState(null);
+  const [regTrainerCode, setRegTrainerCode] = useState("");
+  const [showTrainerField, setShowTrainerField] = useState(false); // { to, subject, body }
 
   const handleLogin = () => {
     setErr("");
@@ -441,16 +446,21 @@ function LoginScreen({ onLogin, users, onRegister }) {
     setRegLoading(true);
 
     const initials = regName.trim().split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const isTrainerReg = regTrainerCode.trim() === TRAINER_SECRET_CODE;
     const newUser = {
       id: Date.now(),
       name: regName.trim(),
       email: regEmail.trim().toLowerCase(),
       password: regPass,
-      role: "client",
+      role: isTrainerReg ? "trainer" : "client",
       avatar: initials,
-      goal: regGoal,
+      goal: isTrainerReg ? "" : regGoal,
     };
 
+    // Registra l'utente SUBITO — indipendentemente dall'email
+    onRegister(newUser);
+
+    // Prova a generare l'email in background (opzionale, non blocca)
     try {
       const emailBody = await generateWelcomeEmail(newUser);
       setWelcomeEmail({
@@ -458,9 +468,11 @@ function LoginScreen({ onLogin, users, onRegister }) {
         subject: `Benvenuto su FitPro, ${newUser.name.split(" ")[0]}! 🏋️`,
         body: emailBody
       });
-      onRegister(newUser);
     } catch (e) {
-      console.error(e);
+      // Email fallita — non importa, l'account è già creato
+      console.warn("Email generation skipped:", e.message);
+      // Vai direttamente all'app
+      onLogin(newUser);
     } finally {
       setRegLoading(false);
     }
@@ -471,37 +483,37 @@ function LoginScreen({ onLogin, users, onRegister }) {
     onLogin(user);
   };
 
-  // When email is ready, show preview before entering the app
+  // When email is ready, show success screen with preview option
   const [showEmailPreview, setShowEmailPreview] = useState(false);
   if (welcomeEmail) {
-    const newUser = users[users.length - 1]; // just registered
+    const newUser = users[users.length - 1];
     return (
       <>
         <div className="login-screen">
-          <div className="login-box" style={{ maxWidth: 480 }}>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
+          <div className="login-box" style={{ maxWidth: 420 }}>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{ fontSize: 52, marginBottom: 10 }}>🎉</div>
               <div style={{ fontFamily: "'Bebas Neue'", fontSize: 28, letterSpacing: 2, color: "var(--accent3)" }}>
-                Registrazione Completata!
+                Account Creato!
               </div>
-              <div className="text-muted mt-8">
-                Account creato con successo. Abbiamo generato la tua email di benvenuto.
+              <div className="text-muted mt-8" style={{ lineHeight: 1.6 }}>
+                Benvenuto su FitPro, <strong style={{ color: "var(--text)" }}>{newUser?.name.split(" ")[0]}</strong>!
               </div>
             </div>
             <div style={{
-              background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8,
-              padding: "12px 16px", marginBottom: 16
+              background: "var(--surface2)", border: "1px solid rgba(67,233,123,0.3)",
+              borderRadius: 8, padding: "12px 16px", marginBottom: 16
             }}>
-              <div className="text-xs text-muted mb-4">📧 Email pronta per essere inviata a:</div>
-              <div style={{ fontWeight: 600, color: "var(--accent)" }}>{welcomeEmail.to}</div>
-              <div className="text-xs text-muted mt-4">Oggetto: {welcomeEmail.subject}</div>
+              <div className="text-xs" style={{ color: "var(--accent3)", marginBottom: 4 }}>✓ Email di benvenuto generata</div>
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{welcomeEmail.to}</div>
+              <div className="text-xs text-muted mt-2">{welcomeEmail.subject}</div>
             </div>
-            <div className="flex gap-8 mb-16" style={{ flexDirection: "column" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <button className="btn btn-ghost" style={{ justifyContent: "center" }}
                 onClick={() => setShowEmailPreview(true)}>
-                👁 Anteprima Email di Benvenuto
+                👁 Vedi Anteprima Email
               </button>
-              <button className="btn btn-primary" style={{ justifyContent: "center", padding: 11 }}
+              <button className="btn btn-primary" style={{ justifyContent: "center", padding: 12 }}
                 onClick={() => finishRegistration(newUser)}>
                 Accedi alla tua Area →
               </button>
@@ -577,18 +589,49 @@ function LoginScreen({ onLogin, users, onRegister }) {
                   placeholder="Ripeti password" onKeyDown={e => e.key === "Enter" && !regLoading && handleRegister()} />
               </div>
             </div>
+
+            {/* Trainer code toggle */}
+            <div className="mb-12">
+              <div
+                onClick={() => setShowTrainerField(p => !p)}
+                style={{ cursor: "pointer", fontSize: 12, color: "var(--text2)", display: "flex", alignItems: "center", gap: 6, userSelect: "none" }}>
+                <span style={{ fontSize: 14 }}>{showTrainerField ? "▾" : "▸"}</span>
+                Sei un personal trainer?
+              </div>
+              {showTrainerField && (
+                <div style={{ marginTop: 8 }}>
+                  <label className="form-label">Codice Trainer</label>
+                  <input
+                    className="input"
+                    type="password"
+                    value={regTrainerCode}
+                    onChange={e => setRegTrainerCode(e.target.value)}
+                    placeholder="Inserisci il codice segreto"
+                  />
+                  {regTrainerCode && regTrainerCode !== TRAINER_SECRET_CODE && (
+                    <div className="text-xs text-red mt-4">⚠ Codice non valido</div>
+                  )}
+                  {regTrainerCode === TRAINER_SECRET_CODE && (
+                    <div className="text-xs text-green mt-4">✓ Codice trainer valido — verrai registrato come Coach</div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {err && <div className="text-red text-sm mb-12">⚠ {err}</div>}
             <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", padding: "11px", marginTop: 4 }}
               onClick={handleRegister} disabled={regLoading}>
               {regLoading ? (
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                  Generazione email...
+                  Creazione account...
                 </span>
-              ) : "Crea Account ✨"}
+              ) : regTrainerCode === TRAINER_SECRET_CODE ? "Crea Account Coach 🏅" : "Crea Account ✨"}
             </button>
             <div className="text-xs text-muted mt-12" style={{ textAlign: "center" }}>
-              Al termine riceverai un'email di benvenuto personalizzata.
+              {regTrainerCode === TRAINER_SECRET_CODE
+                ? "Avrai accesso completo alla gestione dei clienti."
+                : "Registrati come atleta — il tuo coach ti assegnerà le schede."}
             </div>
           </>
         )}
