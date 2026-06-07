@@ -1,5 +1,6 @@
 
-import { useState, useEffect, useMemo } from "react";
+
+import React, { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 
 // ── MOCK DATA ──────────────────────────────────────────────────────────────────
@@ -911,6 +912,94 @@ function ProgressionView({ user, workouts }) {
   );
 }
 
+
+// ── EXERCISE AUTOCOMPLETE ─────────────────────────────────────────────────────
+function ExerciseAutocomplete({ value, onChange, library, onAddToLibrary }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value || "");
+  const ref = React.useRef(null);
+
+  const suggestions = query.length > 0
+    ? library.filter(ex => ex.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
+    : library.slice(0, 8);
+
+  const isCustom = query.trim() && !library.includes(query.trim());
+
+  React.useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const select = (name) => {
+    setQuery(name);
+    onChange(name);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <input
+        className="input"
+        value={query}
+        onChange={e => { setQuery(e.target.value); onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Cerca o scrivi nome esercizio..."
+        autoComplete="off"
+      />
+      {open && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
+          background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 8,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.4)", overflow: "hidden", maxHeight: 260, overflowY: "auto"
+        }}>
+          {suggestions.length > 0 && (
+            <>
+              <div style={{ padding: "6px 12px", fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: "var(--text2)", textTransform: "uppercase", borderBottom: "1px solid var(--border)" }}>
+                Libreria
+              </div>
+              {suggestions.map(ex => (
+                <div key={ex}
+                  onMouseDown={() => select(ex)}
+                  style={{
+                    padding: "9px 14px", cursor: "pointer", fontSize: 13, fontWeight: 500,
+                    background: ex === value ? "rgba(108,99,255,0.12)" : "transparent",
+                    color: ex === value ? "var(--accent)" : "var(--text)",
+                    transition: "background 0.1s"
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                  onMouseLeave={e => e.currentTarget.style.background = ex === value ? "rgba(108,99,255,0.12)" : "transparent"}
+                >
+                  {ex}
+                </div>
+              ))}
+            </>
+          )}
+          {isCustom && (
+            <div style={{ borderTop: suggestions.length ? "1px solid var(--border)" : "none" }}>
+              <div
+                onMouseDown={() => select(query.trim())}
+                style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: "var(--accent3)", fontWeight: 600 }}
+              >
+                ✏️ Usa "{query.trim()}"
+              </div>
+              <div
+                onMouseDown={() => { onAddToLibrary(query.trim()); select(query.trim()); }}
+                style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, color: "var(--gold)", fontWeight: 600, borderTop: "1px solid var(--border)" }}
+              >
+                ⭐ Aggiungi "{query.trim()}" alla libreria
+              </div>
+            </div>
+          )}
+          {suggestions.length === 0 && !isCustom && (
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "var(--text2)" }}>Nessun risultato</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── TRAINER: ALL CLIENTS ──────────────────────────────────────────────────────
 function TrainerClients({ clients, onSelect }) {
   return (
@@ -964,6 +1053,8 @@ function TrainerManageClient({ client, workouts, schedule, setWorkouts, setSched
   const [editWorkout, setEditWorkout] = useState(null); // workout being edited
   const [showExForm, setShowExForm] = useState(false);
   const [newWName, setNewWName] = useState("");
+  const [exerciseLibrary, setExerciseLibrary] = useState([...EXERCISE_LIBRARY]);
+  const [showLibraryManager, setShowLibraryManager] = useState(false);
 
   // New exercise form
   const emptyEx = () => ({ id: genId(), name: EXERCISE_LIBRARY[0], sets: 3, reps: "10", load: 0, rest: 60, notes: "" });
@@ -1078,7 +1169,10 @@ function TrainerManageClient({ client, workouts, schedule, setWorkouts, setSched
             <div className="card">
               <div className="flex-between mb-16">
                 <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, letterSpacing: 1 }}>{ew.name}</div>
-                <button className="btn btn-success btn-sm" onClick={() => { setShowExForm(true); setExForm(emptyEx()); }}>+ Esercizio</button>
+                <div className="flex gap-8">
+                  <button className="btn btn-success btn-sm" onClick={() => { setShowExForm(true); setExForm(emptyEx()); }}>+ Esercizio</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setShowLibraryManager(p => !p)} title="Gestisci libreria">📚</button>
+                </div>
               </div>
 
               {showExForm && (
@@ -1086,9 +1180,12 @@ function TrainerManageClient({ client, workouts, schedule, setWorkouts, setSched
                   <div className="card-title">Nuovo Esercizio</div>
                   <div className="form-group mb-8">
                     <label className="form-label">Esercizio</label>
-                    <select className="select" value={exForm.name} onChange={e => setExForm(p => ({ ...p, name: e.target.value }))}>
-                      {EXERCISE_LIBRARY.map(ex => <option key={ex}>{ex}</option>)}
-                    </select>
+                    <ExerciseAutocomplete
+                      value={exForm.name}
+                      onChange={name => setExForm(p => ({ ...p, name }))}
+                      library={exerciseLibrary}
+                      onAddToLibrary={name => setExerciseLibrary(prev => [...prev, name])}
+                    />
                   </div>
                   <div className="form-row">
                     <div className="form-group">
@@ -1116,6 +1213,46 @@ function TrainerManageClient({ client, workouts, schedule, setWorkouts, setSched
                     <button className="btn btn-primary btn-sm" onClick={() => addExercise(ew.id)}>Aggiungi</button>
                     <button className="btn btn-ghost btn-sm" onClick={() => setShowExForm(false)}>Annulla</button>
                   </div>
+                </div>
+              )}
+
+              {showLibraryManager && (
+                <div className="card mb-12" style={{ background: "var(--surface3)" }}>
+                  <div className="flex-between mb-10">
+                    <div className="card-title" style={{ margin: 0 }}>📚 Gestisci Libreria Esercizi</div>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setShowLibraryManager(false)}>✕</button>
+                  </div>
+                  <div style={{ maxHeight: 200, overflowY: "auto", marginBottom: 10 }}>
+                    {exerciseLibrary.map((ex, i) => (
+                      <div key={ex} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
+                        <span style={{ fontSize: 13 }}>{ex}</span>
+                        {i >= EXERCISE_LIBRARY.length && (
+                          <button className="btn btn-danger btn-xs" onClick={() => setExerciseLibrary(prev => prev.filter(e => e !== ex))}>✕</button>
+                        )}
+                        {i < EXERCISE_LIBRARY.length && <span className="text-xs text-muted">default</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-8">
+                    <input
+                      className="input"
+                      id="new-lib-ex"
+                      placeholder="Aggiungi esercizio personalizzato..."
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && e.target.value.trim()) {
+                          const name = e.target.value.trim();
+                          if (!exerciseLibrary.includes(name)) setExerciseLibrary(prev => [...prev, name]);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <button className="btn btn-primary btn-sm" onClick={() => {
+                      const inp = document.getElementById("new-lib-ex");
+                      const name = inp.value.trim();
+                      if (name && !exerciseLibrary.includes(name)) { setExerciseLibrary(prev => [...prev, name]); inp.value = ""; }
+                    }}>+</button>
+                  </div>
+                  <div className="text-xs text-muted mt-8">Gli esercizi default non possono essere eliminati. I tuoi vengono mostrati per ultimi.</div>
                 </div>
               )}
 
