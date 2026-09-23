@@ -1,12 +1,38 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
-import {
-  getUsers, getUserByEmail, createUser,
-  getWorkoutsForClient, getAllWorkouts,
-  createWorkout as dbCreateWorkout, deleteWorkout as dbDeleteWorkout,
-  addExercise as dbAddExercise, deleteExercise as dbDeleteExercise,
-  getSchedule, getAllSchedules, upsertScheduleDay, deleteScheduleDay, deleteScheduleByWorkout,
-} from "./supabase.js";
+// ── SUPABASE INLINE ──────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://ciwdchbvqnjovtyzvont.supabase.co";
+const SUPABASE_KEY = "sb_publishable_fXTv4M2TbTlzhV4EcMHNtQ_yLsoe9xy";
+
+const sbHeaders = {
+  "Content-Type": "application/json",
+  "apikey": SUPABASE_KEY,
+  "Authorization": `Bearer ${SUPABASE_KEY}`,
+};
+
+const sb = async (path, opts = {}) => {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: { ...sbHeaders, ...(opts.headers || {}) },
+    ...opts,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || data.error || `Errore ${res.status}`);
+  return data;
+};
+
+const getUsers = () => sb("users?select=*&order=created_at.asc");
+const getUserByEmail = (email) => sb(`users?email=eq.${encodeURIComponent(email)}&select=*`).then(r => r?.[0] || null);
+const createUser = (u) => sb("users?select=*", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(u) }).then(r => r?.[0]);
+const getWorkoutsForClient = (id) => sb(`workouts?client_id=eq.${id}&select=*,exercises(*)&order=created_at.asc`);
+const dbCreateWorkout = (w) => sb("workouts?select=*", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(w) }).then(r => r?.[0]);
+const dbDeleteWorkout = (id) => sb(`workouts?id=eq.${id}`, { method: "DELETE" });
+const dbAddExercise = (e) => sb("exercises?select=*", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(e) }).then(r => r?.[0]);
+const dbDeleteExercise = (id) => sb(`exercises?id=eq.${id}`, { method: "DELETE" });
+const getSchedule = (clientId) => sb(`schedule?client_id=eq.${clientId}&select=*`);
+const upsertScheduleDay = (row) => sb("schedule?on_conflict=client_id,day_index", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=representation" }, body: JSON.stringify(row) });
+const deleteScheduleDay = (clientId, dayIndex) => sb(`schedule?client_id=eq.${clientId}&day_index=eq.${dayIndex}`, { method: "DELETE" });
+const deleteScheduleByWorkout = (workoutId) => sb(`schedule?workout_id=eq.${workoutId}`, { method: "DELETE" });
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 const TRAINER_SECRET_CODE = "FITPRO-COACH-2025";
