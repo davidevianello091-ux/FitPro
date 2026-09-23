@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 // ── SUPABASE INLINE ──────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://ciwdchbvqnjovtyzvont.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpd2RjaGJ2cW5qb3Z0eXp2b250Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwOTkyOTksImV4cCI6MjA5NjY3NTI5OX0.o8vWGa7urb4KIkwslnXTrMU_KfrymmhpXrwG-KgzGsU";
+const SUPABASE_KEY = "sb_publishable_fXTv4M2TbTlzhV4EcMHNtQ_yLsoe9xy";
 
 const sbHeaders = {
   "Content-Type": "application/json",
