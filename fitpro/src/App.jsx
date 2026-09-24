@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 // ── SUPABASE INLINE ──────────────────────────────────────────────────────────
-const SUPABASE_URL = "https://ciwdchbvqnjovtyzvont.supabase.co";
+const SUPABASE_URL = "https://ciwdchbvqnjovtyzvont.supabase.co/rest/v1/";
 const SUPABASE_KEY = "sb_publishable_fXTv4M2TbTlzhV4EcMHNtQ_yLsoe9xy";
 
 const sbHeaders = {
